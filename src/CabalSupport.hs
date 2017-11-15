@@ -1,24 +1,28 @@
 module CabalSupport (parseCabalFile,Unit(..),UnitName(..)) where
 
-import Utils(ModName)
+import           Utils                                         (ModName)
 
-import Data.Maybe(maybeToList)
-import System.FilePath((</>))
+import           Data.Maybe                                    (maybeToList)
+import           System.FilePath                               ((</>))
 
 -- Interface to cabal.
-import Distribution.PackageDescription.Parse(readPackageDescription)
-import Distribution.Verbosity(silent)
-import Distribution.PackageDescription
-        ( GenericPackageDescription, PackageDescription(..)
-        , Library(..), Executable(..), BuildInfo(..) )
-import Distribution.PackageDescription.Configuration (flattenPackageDescription)
-import Distribution.ModuleName(ModuleName,components)
+import           Distribution.ModuleName                       (ModuleName,
+                                                                components)
+import           Distribution.PackageDescription               (BuildInfo (..),
+                                                                Executable (..),
+                                                                GenericPackageDescription,
+                                                                Library (..),
+                                                                PackageDescription (..))
+import           Distribution.PackageDescription.Configuration (flattenPackageDescription)
+import           Distribution.PackageDescription.Parse         (readGenericPackageDescription)
+import           Distribution.Types.UnqualComponentName        (unUnqualComponentName)
+import           Distribution.Verbosity                        (silent)
 
 
 
 
 parseCabalFile :: FilePath -> IO [Unit]
-parseCabalFile f = fmap findUnits (readPackageDescription silent f)
+parseCabalFile f = fmap findUnits (readGenericPackageDescription silent f)
 
 
 -- | This is our abstraction for something in a cabal file.
@@ -42,7 +46,7 @@ libUnit lib = Unit { unitName     = UnitLibrary
                    }
 
 exeUnit :: Executable -> Unit
-exeUnit exe = Unit { unitName    = UnitExecutable (exeName exe)
+exeUnit exe = Unit { unitName    = UnitExecutable (unUnqualComponentName $ exeName exe)
                    , unitPaths   = hsSourceDirs (buildInfo exe)
                    , unitModules = [] -- other modules?
                    , unitFiles   = case hsSourceDirs (buildInfo exe) of
@@ -60,5 +64,3 @@ findUnits g = maybeToList (fmap libUnit (library pkg))  ++
                            fmap exeUnit (executables pkg)
   where
   pkg = flattenPackageDescription g -- we just ignore flags
-
-
